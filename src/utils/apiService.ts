@@ -166,6 +166,13 @@ class ApiService<T> {
         body: JSON.stringify(item)
       });
       
+      if (data && data.success === false) {
+        return {
+          success: false,
+          error: data.error || data.message || 'Erro ao criar registro'
+        };
+      }
+      
       return {
         success: true,
         data: data.data || data,
@@ -189,6 +196,13 @@ class ApiService<T> {
         body: JSON.stringify(item)
       });
       
+      if (data && data.success === false) {
+        return {
+          success: false,
+          error: data.error || data.message || 'Erro ao atualizar registro'
+        };
+      }
+      
       return {
         success: true,
         data: data.data || data,
@@ -210,6 +224,14 @@ class ApiService<T> {
       const data = await centralApiRequest<any>(`/${this.endpoint}/${id}`, {
         method: 'DELETE'
       });
+      
+      // Verificar se a API retornou sucesso real
+      if (data && data.success === false) {
+        return {
+          success: false,
+          error: data.error || data.message || 'Erro ao excluir registro'
+        };
+      }
       
       return {
         success: true,
