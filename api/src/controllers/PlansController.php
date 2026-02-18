@@ -432,7 +432,7 @@ class PlansController {
             // Verificar se há usuários usando este plano (TODAS as assinaturas, não só ativas)
             $usersQuery = "SELECT u.id, u.full_name, u.email, u.username as login, us.status as subscription_status, us.start_date, us.end_date
                           FROM user_subscriptions us
-                          JOIN usuarios u ON us.user_id = u.id
+                          JOIN users u ON us.user_id = u.id
                           WHERE us.plan_id = ?
                           ORDER BY us.status ASC, us.end_date DESC";
             $usersStmt = $this->db->prepare($usersQuery);
@@ -474,7 +474,7 @@ class PlansController {
                 try {
                     $usersQuery = "SELECT u.id, u.full_name, u.email, u.username as login, us.status as subscription_status
                                   FROM user_subscriptions us
-                                  JOIN usuarios u ON us.user_id = u.id
+                                  JOIN users u ON us.user_id = u.id
                                   WHERE us.plan_id = ?";
                     $usersStmt = $this->db->prepare($usersQuery);
                     $usersStmt->execute([$id]);
