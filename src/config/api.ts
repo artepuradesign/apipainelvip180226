@@ -135,6 +135,7 @@ export const apiRequest = async <T = any>(
           return {
             success: false,
             error: errorData.error || errorData.message || response.statusText,
+            code: errorData.code || null,
             data: errorData.data || null
           } as T;
         } catch (parseError) {
