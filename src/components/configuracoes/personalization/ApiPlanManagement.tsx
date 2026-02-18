@@ -6,11 +6,17 @@ import { useApiPlans } from '@/hooks/useApiPlans';
 import EmptyState from '@/components/ui/empty-state';
 import ApiPlanForm from './ApiPlanForm';
 import ApiPlansCardView from './ApiPlansCardView';
+import PlanSubscribersModal from './PlanSubscribersModal';
 
 const ApiPlanManagement = () => {
   const { plans, isLoading, createPlan, updatePlan, deletePlan, loadPlans, togglePlanStatus } = useApiPlans();
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [showForm, setShowForm] = useState(false);
+  const [subscribersModal, setSubscribersModal] = useState<{
+    open: boolean;
+    planName: string;
+    subscribers: any[];
+  }>({ open: false, planName: '', subscribers: [] });
 
   const handleCreatePlan = () => {
     setSelectedPlan(null);
@@ -53,7 +59,15 @@ const ApiPlanManagement = () => {
     if (window.confirm('Tem certeza que deseja excluir este plano?')) {
       try {
         await deletePlan(id);
-      } catch (error) {
+      } catch (error: any) {
+        // Verificar se o erro contém dados de assinantes
+        if (error?.code === 'PLAN_HAS_SUBSCRIBERS' && error?.data?.subscribers) {
+          setSubscribersModal({
+            open: true,
+            planName: error.data.plan_name || 'Plano',
+            subscribers: error.data.subscribers,
+          });
+        }
         console.error('Erro ao excluir plano:', error);
       }
     }
@@ -132,6 +146,13 @@ const ApiPlanManagement = () => {
           onToggleStatus={handleToggleStatus}
         />
       )}
+
+      <PlanSubscribersModal
+        open={subscribersModal.open}
+        onClose={() => setSubscribersModal({ open: false, planName: '', subscribers: [] })}
+        planName={subscribersModal.planName}
+        subscribers={subscribersModal.subscribers}
+      />
     </div>
   );
 };
