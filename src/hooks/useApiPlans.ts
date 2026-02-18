@@ -111,13 +111,28 @@ export const useApiPlans = () => {
         await loadPlans();
       } else {
         console.error('❌ [PLANS] Erro ao excluir:', response.error);
-        toast.error(response.error || 'Erro ao excluir plano');
-        throw new Error(response.error || 'Erro ao excluir plano');
+        
+        // Verificar se a resposta contém dados de assinantes
+        const responseData = (response as any).data;
+        const responseCode = (response as any).code;
+        
+        if (responseCode === 'PLAN_HAS_SUBSCRIBERS' && responseData?.subscribers) {
+          toast.error(`O plano possui ${responseData.subscribers_count} assinatura(s) vinculada(s)`);
+          const error: any = new Error(response.error || 'Plano possui assinantes');
+          error.code = 'PLAN_HAS_SUBSCRIBERS';
+          error.data = responseData;
+          throw error;
+        } else {
+          toast.error(response.error || 'Erro ao excluir plano');
+          throw new Error(response.error || 'Erro ao excluir plano');
+        }
       }
     } catch (error) {
       console.error('❌ [PLANS] Erro ao excluir plano:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      toast.error(errorMessage);
+      if (!(error instanceof Error) || !(error as any).code) {
+        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+        toast.error(errorMessage);
+      }
       throw error;
     }
   };

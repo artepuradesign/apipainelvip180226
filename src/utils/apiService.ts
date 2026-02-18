@@ -229,8 +229,10 @@ class ApiService<T> {
       if (data && data.success === false) {
         return {
           success: false,
-          error: data.error || data.message || 'Erro ao excluir registro'
-        };
+          error: data.error || data.message || 'Erro ao excluir registro',
+          data: data.data,
+          code: data.code,
+        } as any;
       }
       
       return {

@@ -419,23 +419,40 @@ class PlansController {
     public function delete($id) {
         try {
             // Verificar se plano existe
-            $checkQuery = "SELECT id FROM plans WHERE id = ?";
+            $checkQuery = "SELECT id, name FROM plans WHERE id = ?";
             $checkStmt = $this->db->prepare($checkQuery);
             $checkStmt->execute([$id]);
+            $plan = $checkStmt->fetch(PDO::FETCH_ASSOC);
             
-            if (!$checkStmt->fetch()) {
+            if (!$plan) {
                 Response::error('Plano não encontrado', 404);
                 return;
             }
             
-            // Verificar se há usuários usando este plano
-            $usersQuery = "SELECT COUNT(*) as count FROM user_subscriptions WHERE plan_id = ? AND status = 'active'";
+            // Verificar se há usuários usando este plano (TODAS as assinaturas, não só ativas)
+            $usersQuery = "SELECT u.id, u.full_name, u.email, u.username as login, us.status as subscription_status, us.start_date, us.end_date
+                          FROM user_subscriptions us
+                          JOIN usuarios u ON us.user_id = u.id
+                          WHERE us.plan_id = ?
+                          ORDER BY us.status ASC, us.end_date DESC";
             $usersStmt = $this->db->prepare($usersQuery);
             $usersStmt->execute([$id]);
-            $usersCount = $usersStmt->fetch(PDO::FETCH_ASSOC);
+            $subscribers = $usersStmt->fetchAll(PDO::FETCH_ASSOC);
             
-            if ($usersCount['count'] > 0) {
-                Response::error('Não é possível excluir plano que possui assinantes ativos', 400);
+            if (count($subscribers) > 0) {
+                http_response_code(409);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Não é possível excluir o plano "' . $plan['name'] . '" pois há ' . count($subscribers) . ' assinatura(s) vinculada(s)',
+                    'message' => 'Plano possui assinaturas vinculadas',
+                    'code' => 'PLAN_HAS_SUBSCRIBERS',
+                    'data' => [
+                        'plan_id' => (int)$id,
+                        'plan_name' => $plan['name'],
+                        'subscribers_count' => count($subscribers),
+                        'subscribers' => $subscribers
+                    ]
+                ]);
                 return;
             }
             
@@ -451,6 +468,35 @@ class PlansController {
             
         } catch (Exception $e) {
             error_log("PLANS_CONTROLLER DELETE ERROR: " . $e->getMessage());
+            
+            // Verificar se é erro de constraint violation
+            if (strpos($e->getMessage(), 'foreign key constraint') !== false || strpos($e->getMessage(), '1451') !== false) {
+                try {
+                    $usersQuery = "SELECT u.id, u.full_name, u.email, u.username as login, us.status as subscription_status
+                                  FROM user_subscriptions us
+                                  JOIN usuarios u ON us.user_id = u.id
+                                  WHERE us.plan_id = ?";
+                    $usersStmt = $this->db->prepare($usersQuery);
+                    $usersStmt->execute([$id]);
+                    $subscribers = $usersStmt->fetchAll(PDO::FETCH_ASSOC);
+                    
+                    http_response_code(409);
+                    echo json_encode([
+                        'success' => false,
+                        'error' => 'Não é possível excluir o plano pois há assinaturas vinculadas',
+                        'code' => 'PLAN_HAS_SUBSCRIBERS',
+                        'data' => [
+                            'plan_id' => (int)$id,
+                            'subscribers_count' => count($subscribers),
+                            'subscribers' => $subscribers
+                        ]
+                    ]);
+                    return;
+                } catch (Exception $innerE) {
+                    // fallback
+                }
+            }
+            
             Response::error('Erro ao excluir plano: ' . $e->getMessage(), 500);
         }
     }
