@@ -429,12 +429,12 @@ class PlansController {
                 return;
             }
             
-            // Verificar se há usuários usando este plano (TODAS as assinaturas, não só ativas)
+            // Verificar se há usuários com assinatura ATIVA neste plano
             $usersQuery = "SELECT u.id, u.full_name, u.email, u.username as login, us.status as subscription_status, us.start_date, us.end_date
                           FROM user_subscriptions us
                           JOIN users u ON us.user_id = u.id
-                          WHERE us.plan_id = ?
-                          ORDER BY us.status ASC, us.end_date DESC";
+                          WHERE us.plan_id = ? AND us.status = 'active'
+                          ORDER BY us.end_date DESC";
             $usersStmt = $this->db->prepare($usersQuery);
             $usersStmt->execute([$id]);
             $subscribers = $usersStmt->fetchAll(PDO::FETCH_ASSOC);
