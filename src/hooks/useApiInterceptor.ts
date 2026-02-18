@@ -13,13 +13,13 @@ export const useApiInterceptor = () => {
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       // Verificar se é uma requisição para nossa API
       const url = typeof input === 'string' ? input : input.toString();
-      const isApiRequest = url.includes('api.artepuradesign.com.br');
+      const isApiRequest = url.includes('api.apipainel.com.br');
 
-      if (isApiRequest) {
+      if (isApiRequest && init) {
         // Adicionar token automaticamente se não foi especificado
         const token = cookieUtils.get('session_token') || cookieUtils.get('api_session_token');
         
-        if (token && init) {
+        if (token) {
           const headers = new Headers(init.headers);
           
           // Só adicionar Authorization se não foi especificado
@@ -36,11 +36,19 @@ export const useApiInterceptor = () => {
 
         // Verificar se a resposta indica token expirado (apenas para erros reais de auth)
         if (isApiRequest && response.status === 401) {
+          // Ignorar 401 de endpoints não-críticos que podem falhar brevemente após login
+          const nonCriticalEndpoints = ['/notifications', '/session-monitor', '/module-history/stats'];
+          const isNonCritical = nonCriticalEndpoints.some(ep => url.includes(ep));
+          
+          if (isNonCritical) {
+            console.warn('🔔 [API_INTERCEPTOR] 401 em endpoint não-crítico, ignorando logout:', url);
+            return response;
+          }
+
           console.log('🚫 [API_INTERCEPTOR] Status 401 detectado para:', url);
           
-          // Verificar se realmente é um erro de autenticação, não de server
+          // Verificar se realmente é um erro de autenticação
           const responseText = await response.clone().text();
-          console.log('🚫 [API_INTERCEPTOR] Response text:', responseText.substring(0, 200) + '...');
           
           const isAuthError = responseText.includes('unauthorized') || 
                              responseText.includes('token') || 
@@ -49,21 +57,16 @@ export const useApiInterceptor = () => {
                              responseText.includes('expirado') ||
                              responseText.includes('expired');
           
-          // Só fazer logout se for erro real de autenticação, não server error
+          // Só fazer logout se for erro real de autenticação em endpoint crítico
           if (isAuthError) {
-            console.log('🚫 [API_INTERCEPTOR] Erro real de autenticação detectado, redirecionando para logout');
-            await signOut();
-            
-            // Redirecionar para página de logout
-            window.location.href = '/logout';
-          } else {
-            console.warn('🚫 [API_INTERCEPTOR] 401 recebido mas não parece ser erro de auth, ignorando logout');
+            // Verificar se o usuário realmente está logado (tem cookies)
+            const hasToken = cookieUtils.get('session_token') || cookieUtils.get('api_session_token');
+            if (hasToken) {
+              console.log('🚫 [API_INTERCEPTOR] Erro de autenticação em endpoint crítico, redirecionando para logout');
+              await signOut();
+              window.location.href = '/logout';
+            }
           }
-        }
-        
-        // Log para erros 500 também
-        if (isApiRequest && response.status >= 500) {
-          console.warn('🚫 [API_INTERCEPTOR] Erro de servidor detectado:', response.status, 'para URL:', url);
         }
 
         return response;
