@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,8 @@ import EmptyState from '@/components/ui/empty-state';
 import ApiPlanForm from './ApiPlanForm';
 import ApiPlansCardView from './ApiPlansCardView';
 import PlanSubscribersModal from './PlanSubscribersModal';
+import { toast } from 'sonner';
+import { apiRequest } from '@/config/api';
 
 const ApiPlanManagement = () => {
   const { plans, isLoading, createPlan, updatePlan, deletePlan, loadPlans, togglePlanStatus } = useApiPlans();
@@ -15,8 +18,9 @@ const ApiPlanManagement = () => {
   const [subscribersModal, setSubscribersModal] = useState<{
     open: boolean;
     planName: string;
+    planId: number;
     subscribers: any[];
-  }>({ open: false, planName: '', subscribers: [] });
+  }>({ open: false, planName: '', planId: 0, subscribers: [] });
 
   const handleCreatePlan = () => {
     setSelectedPlan(null);
@@ -60,16 +64,48 @@ const ApiPlanManagement = () => {
       try {
         await deletePlan(id);
       } catch (error: any) {
-        // Verificar se o erro contém dados de assinantes
         if (error?.code === 'PLAN_HAS_SUBSCRIBERS' && error?.data?.subscribers) {
           setSubscribersModal({
             open: true,
             planName: error.data.plan_name || 'Plano',
+            planId: error.data.plan_id || id,
             subscribers: error.data.subscribers,
           });
         }
         console.error('Erro ao excluir plano:', error);
       }
+    }
+  };
+
+  const handleMigrateAndDelete = async (planId: number, targetPlanId: number | string) => {
+    try {
+      const targetValue = targetPlanId === 'prepago' ? 'prepago' : targetPlanId;
+      
+      // Migrar assinantes
+      const migrateResponse = await apiRequest<any>(`/plans/${planId}/migrate`, {
+        method: 'POST',
+        body: JSON.stringify({ target_plan_id: targetValue }),
+      });
+
+      if (migrateResponse && migrateResponse.success !== false) {
+        toast.success(`${migrateResponse.data?.migrated_count || 0} usuário(s) migrado(s) com sucesso!`);
+        
+        // Agora excluir o plano
+        try {
+          await deletePlan(planId);
+          toast.success('Plano excluído com sucesso!');
+        } catch (deleteError) {
+          // Recarregar planos mesmo se der erro
+          await loadPlans();
+          toast.info('Usuários migrados. Tente excluir o plano novamente.');
+        }
+      } else {
+        toast.error(migrateResponse?.error || 'Erro ao migrar assinantes');
+      }
+    } catch (error) {
+      console.error('Erro ao migrar e excluir:', error);
+      toast.error('Erro ao migrar assinantes');
+      throw error;
     }
   };
 
@@ -149,9 +185,12 @@ const ApiPlanManagement = () => {
 
       <PlanSubscribersModal
         open={subscribersModal.open}
-        onClose={() => setSubscribersModal({ open: false, planName: '', subscribers: [] })}
+        onClose={() => setSubscribersModal({ open: false, planName: '', planId: 0, subscribers: [] })}
         planName={subscribersModal.planName}
+        planId={subscribersModal.planId}
         subscribers={subscribersModal.subscribers}
+        availablePlans={plans.map(p => ({ id: p.id, name: p.name }))}
+        onMigrateAndDelete={handleMigrateAndDelete}
       />
     </div>
   );

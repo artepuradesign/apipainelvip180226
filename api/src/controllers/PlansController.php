@@ -429,32 +429,52 @@ class PlansController {
                 return;
             }
             
+            // Verificar parâmetro force (para ignorar assinaturas inativas)
+            $force = isset($_GET['force']) && $_GET['force'] === 'true';
+            
             // Verificar se há usuários com assinatura ATIVA neste plano
-            $usersQuery = "SELECT u.id, u.full_name, u.email, u.username as login, us.status as subscription_status, us.start_date, us.end_date
+            $activeQuery = "SELECT u.id, u.full_name, u.email, u.username as login, us.status as subscription_status, us.start_date, us.end_date
                           FROM user_subscriptions us
                           JOIN users u ON us.user_id = u.id
                           WHERE us.plan_id = ? AND us.status = 'active'
                           ORDER BY us.end_date DESC";
-            $usersStmt = $this->db->prepare($usersQuery);
-            $usersStmt->execute([$id]);
-            $subscribers = $usersStmt->fetchAll(PDO::FETCH_ASSOC);
+            $activeStmt = $this->db->prepare($activeQuery);
+            $activeStmt->execute([$id]);
+            $activeSubscribers = $activeStmt->fetchAll(PDO::FETCH_ASSOC);
             
-            if (count($subscribers) > 0) {
+            if (count($activeSubscribers) > 0) {
+                // Buscar também todos os assinantes para contexto
+                $allQuery = "SELECT u.id, u.full_name, u.email, u.username as login, us.status as subscription_status, us.start_date, us.end_date
+                            FROM user_subscriptions us
+                            JOIN users u ON us.user_id = u.id
+                            WHERE us.plan_id = ?
+                            ORDER BY us.status ASC, us.end_date DESC";
+                $allStmt = $this->db->prepare($allQuery);
+                $allStmt->execute([$id]);
+                $allSubscribers = $allStmt->fetchAll(PDO::FETCH_ASSOC);
+                
                 http_response_code(409);
                 echo json_encode([
                     'success' => false,
-                    'error' => 'Não é possível excluir o plano "' . $plan['name'] . '" pois há ' . count($subscribers) . ' assinatura(s) vinculada(s)',
-                    'message' => 'Plano possui assinaturas vinculadas',
+                    'error' => 'Não é possível excluir o plano "' . $plan['name'] . '" pois há ' . count($activeSubscribers) . ' assinante(s) ativo(s)',
+                    'message' => 'Plano possui assinantes ativos',
                     'code' => 'PLAN_HAS_SUBSCRIBERS',
                     'data' => [
                         'plan_id' => (int)$id,
                         'plan_name' => $plan['name'],
-                        'subscribers_count' => count($subscribers),
-                        'subscribers' => $subscribers
+                        'active_count' => count($activeSubscribers),
+                        'subscribers_count' => count($allSubscribers),
+                        'subscribers' => $allSubscribers
                     ]
                 ]);
                 return;
             }
+            
+            // Se chegou aqui, não há assinantes ativos
+            // Cancelar/limpar assinaturas inativas antes de deletar
+            $cleanupQuery = "DELETE FROM user_subscriptions WHERE plan_id = ? AND status != 'active'";
+            $cleanupStmt = $this->db->prepare($cleanupQuery);
+            $cleanupStmt->execute([$id]);
             
             $query = "DELETE FROM plans WHERE id = ?";
             $stmt = $this->db->prepare($query);
@@ -471,11 +491,29 @@ class PlansController {
             
             // Verificar se é erro de constraint violation
             if (strpos($e->getMessage(), 'foreign key constraint') !== false || strpos($e->getMessage(), '1451') !== false) {
+                // Limpar assinaturas inativas e tentar novamente
+                try {
+                    $cleanupQuery = "DELETE FROM user_subscriptions WHERE plan_id = ? AND status != 'active'";
+                    $cleanupStmt = $this->db->prepare($cleanupQuery);
+                    $cleanupStmt->execute([$id]);
+                    
+                    $retryQuery = "DELETE FROM plans WHERE id = ?";
+                    $retryStmt = $this->db->prepare($retryQuery);
+                    $retryResult = $retryStmt->execute([$id]);
+                    
+                    if ($retryResult) {
+                        Response::success(null, 'Plano excluído com sucesso');
+                        return;
+                    }
+                } catch (Exception $retryE) {
+                    // Se ainda falhar, buscar assinantes ativos
+                }
+                
                 try {
                     $usersQuery = "SELECT u.id, u.full_name, u.email, u.username as login, us.status as subscription_status
                                   FROM user_subscriptions us
                                   JOIN users u ON us.user_id = u.id
-                                  WHERE us.plan_id = ?";
+                                  WHERE us.plan_id = ? AND us.status = 'active'";
                     $usersStmt = $this->db->prepare($usersQuery);
                     $usersStmt->execute([$id]);
                     $subscribers = $usersStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -483,7 +521,7 @@ class PlansController {
                     http_response_code(409);
                     echo json_encode([
                         'success' => false,
-                        'error' => 'Não é possível excluir o plano pois há assinaturas vinculadas',
+                        'error' => 'Não é possível excluir o plano pois há assinantes ativos',
                         'code' => 'PLAN_HAS_SUBSCRIBERS',
                         'data' => [
                             'plan_id' => (int)$id,
@@ -498,6 +536,86 @@ class PlansController {
             }
             
             Response::error('Erro ao excluir plano: ' . $e->getMessage(), 500);
+        }
+    }
+    
+    public function migrateSubscribers($fromPlanId) {
+        try {
+            $input = json_decode(file_get_contents('php://input'), true);
+            $targetPlanId = $input['target_plan_id'] ?? null;
+            
+            if (!$targetPlanId) {
+                Response::error('Plan de destino não informado', 400);
+                return;
+            }
+            
+            // Verificar se plano de origem existe
+            $checkQuery = "SELECT id, name FROM plans WHERE id = ?";
+            $checkStmt = $this->db->prepare($checkQuery);
+            $checkStmt->execute([$fromPlanId]);
+            $fromPlan = $checkStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$fromPlan) {
+                Response::error('Plano de origem não encontrado', 404);
+                return;
+            }
+            
+            $this->db->beginTransaction();
+            
+            if ($targetPlanId === 'prepago') {
+                // Migrar para pré-pago: cancelar assinaturas e atualizar users
+                $cancelQuery = "UPDATE user_subscriptions SET status = 'cancelled' WHERE plan_id = ? AND status = 'active'";
+                $cancelStmt = $this->db->prepare($cancelQuery);
+                $cancelStmt->execute([$fromPlanId]);
+                $migratedCount = $cancelStmt->rowCount();
+                
+                // Atualizar tabela users para pré-pago
+                $updateUsersQuery = "UPDATE users SET tipoplano = 'Pre-pago' WHERE id IN (
+                    SELECT user_id FROM user_subscriptions WHERE plan_id = ? AND status = 'cancelled'
+                )";
+                $updateStmt = $this->db->prepare($updateUsersQuery);
+                $updateStmt->execute([$fromPlanId]);
+            } else {
+                // Verificar se plano de destino existe
+                $targetQuery = "SELECT id, name FROM plans WHERE id = ?";
+                $targetStmt = $this->db->prepare($targetQuery);
+                $targetStmt->execute([$targetPlanId]);
+                $targetPlan = $targetStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if (!$targetPlan) {
+                    $this->db->rollBack();
+                    Response::error('Plano de destino não encontrado', 404);
+                    return;
+                }
+                
+                // Migrar assinaturas ativas para o novo plano
+                $migrateQuery = "UPDATE user_subscriptions SET plan_id = ? WHERE plan_id = ? AND status = 'active'";
+                $migrateStmt = $this->db->prepare($migrateQuery);
+                $migrateStmt->execute([$targetPlanId, $fromPlanId]);
+                $migratedCount = $migrateStmt->rowCount();
+                
+                // Atualizar tabela users
+                $updateUsersQuery = "UPDATE users SET tipoplano = ? WHERE id IN (
+                    SELECT user_id FROM user_subscriptions WHERE plan_id = ? AND status = 'active'
+                )";
+                $updateStmt = $this->db->prepare($updateUsersQuery);
+                $updateStmt->execute([$targetPlan['name'], $targetPlanId]);
+            }
+            
+            $this->db->commit();
+            
+            Response::success([
+                'migrated_count' => $migratedCount,
+                'from_plan' => $fromPlan['name'],
+                'target_plan' => $targetPlanId === 'prepago' ? 'Pré-pago' : ($targetPlan['name'] ?? 'Desconhecido')
+            ], "Migração concluída: {$migratedCount} assinante(s) migrado(s)");
+            
+        } catch (Exception $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            error_log("PLANS_CONTROLLER MIGRATE ERROR: " . $e->getMessage());
+            Response::error('Erro ao migrar assinantes: ' . $e->getMessage(), 500);
         }
     }
 }
