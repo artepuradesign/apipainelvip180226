@@ -63,7 +63,9 @@ switch ($method) {
         break;
         
     case 'POST':
-        if ($path === '/plans' || strpos($path, '/plans/create') !== false) {
+        if (preg_match('/\/plans\/(\d+)\/migrate$/', $path, $matches)) {
+            $plansController->migrateSubscribers($matches[1]);
+        } elseif ($path === '/plans' || strpos($path, '/plans/create') !== false) {
             $plansController->create();
         } else {
             Response::error('Endpoint não encontrado', 404);
