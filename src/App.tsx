@@ -80,6 +80,7 @@ import Cupons from '@/pages/dashboard/Cupons';
 import GerenciarCupons from '@/pages/dashboard/admin/GerenciarCupons';
 
 import Personalizacao from '@/pages/dashboard/Personalizacao';
+import PlanoDetalhes from '@/pages/dashboard/PlanoDetalhes';
 import Configuracoes from '@/pages/dashboard/Configuracoes';
 import AdicionarSaldo from '@/pages/dashboard/AdicionarSaldo';
 import HistoricoPagamentos from '@/pages/dashboard/HistoricoPagamentos';
@@ -245,6 +246,7 @@ function App() {
                     <Route path="/test-recharge" element={<DashboardLayout><TestRecharge /></DashboardLayout>} />
                     
                     <Route path="/dashboard/personalizacao" element={<DashboardLayout><Personalizacao /></DashboardLayout>} />
+                    <Route path="/dashboard/personalizacao/plano/:planId" element={<DashboardLayout><PlanoDetalhes /></DashboardLayout>} />
                     <Route path="/dashboard/configuracoes" element={<DashboardLayout><Configuracoes /></DashboardLayout>} />
                     <Route path="/dashboard/adicionar-saldo" element={<DashboardLayout><AdicionarSaldo /></DashboardLayout>} />
                     <Route path="/dashboard/pagarplano" element={<DashboardLayout><PagarPlano /></DashboardLayout>} />
