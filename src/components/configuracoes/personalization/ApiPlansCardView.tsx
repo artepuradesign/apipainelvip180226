@@ -1,8 +1,9 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Power, PowerOff, CreditCard } from 'lucide-react';
+import { Edit, Trash2, Power, PowerOff, CreditCard, Eye } from 'lucide-react';
 import { Plan } from '@/utils/apiService';
 
 interface ApiPlansCardViewProps {
@@ -18,6 +19,7 @@ const ApiPlansCardView: React.FC<ApiPlansCardViewProps> = ({
   onDelete,
   onToggleStatus
 }) => {
+  const navigate = useNavigate();
   if (plans.length === 0) {
     return (
       <div className="bg-white/75 dark:bg-gray-800/75 rounded-lg border border-gray-200/75 dark:border-gray-700/75 backdrop-blur-sm p-8">
@@ -109,7 +111,16 @@ const ApiPlansCardView: React.FC<ApiPlansCardViewProps> = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => onToggleStatus(plan.id)}
+                    onClick={(e) => { e.stopPropagation(); navigate(`/dashboard/personalizacao/plano/${plan.id}`); }}
+                    title="Ver assinantes"
+                    className="flex-1 p-1"
+                  >
+                    <Eye className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => { e.stopPropagation(); onToggleStatus(plan.id); }}
                     title={plan.is_active ? 'Desativar' : 'Ativar'}
                     className="flex-1 p-1"
                   >
@@ -121,7 +132,7 @@ const ApiPlansCardView: React.FC<ApiPlansCardViewProps> = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => onEdit(plan)}
+                    onClick={(e) => { e.stopPropagation(); onEdit(plan); }}
                     title="Editar plano"
                     className="flex-1 p-1"
                   >
@@ -130,7 +141,7 @@ const ApiPlansCardView: React.FC<ApiPlansCardViewProps> = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => onDelete(plan.id)}
+                    onClick={(e) => { e.stopPropagation(); onDelete(plan.id); }}
                     className="text-red-600 hover:text-red-700 flex-1 p-1"
                     title="Excluir plano"
                   >
