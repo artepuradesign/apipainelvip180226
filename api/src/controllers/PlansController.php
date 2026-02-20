@@ -618,4 +618,53 @@ class PlansController {
             Response::error('Erro ao migrar assinantes: ' . $e->getMessage(), 500);
         }
     }
+    
+    public function getDetails($id) {
+        try {
+            // Buscar plano
+            $query = "SELECT * FROM plans WHERE id = ?";
+            $stmt = $this->db->prepare($query);
+            $stmt->execute([$id]);
+            $plan = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$plan) {
+                Response::error('Plano não encontrado', 404);
+                return;
+            }
+            
+            // Processar dados do plano
+            $plan['id'] = (int)$plan['id'];
+            $plan['price'] = (float)$plan['price'];
+            $plan['duration_days'] = (int)$plan['duration_days'];
+            $plan['max_consultations'] = (int)$plan['consultation_limit'];
+            $plan['is_active'] = (bool)$plan['is_active'];
+            $plan['discount_percentage'] = (int)$plan['discount_percentage'];
+            $plan['discountPercentage'] = (int)$plan['discount_percentage'];
+            
+            if ($plan['features']) {
+                $plan['features'] = json_decode($plan['features'], true);
+            } else {
+                $plan['features'] = [];
+            }
+            
+            // Buscar assinantes ativos
+            $query = "SELECT us.user_id, u.full_name, u.email, u.login, us.status, us.start_date, us.end_date
+                     FROM user_subscriptions us
+                     JOIN usuarios u ON us.user_id = u.id
+                     WHERE us.plan_id = ? AND us.status = 'active'
+                     ORDER BY us.end_date ASC";
+            $stmt = $this->db->prepare($query);
+            $stmt->execute([$id]);
+            $subscribers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            Response::success([
+                'plan' => $plan,
+                'subscribers' => $subscribers
+            ], 'Detalhes do plano carregados com sucesso');
+            
+        } catch (Exception $e) {
+            error_log("PLANS_CONTROLLER GET_DETAILS ERROR: " . $e->getMessage());
+            Response::error('Erro ao buscar detalhes: ' . $e->getMessage(), 500);
+        }
+    }
 }
