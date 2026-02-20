@@ -50,53 +50,17 @@ const PlanoDetalhes = () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Tentar endpoint de detalhes primeiro
       const response = await apiRequest<any>(`/plans/${id}/details`);
       
       if (response?.success && response.data?.plan) {
-        // Endpoint de detalhes retornou corretamente
         setPlan(response.data.plan);
         setSubscribers(response.data.subscribers || []);
-      } else if (response?.success && Array.isArray(response.data)) {
-        // Fallback: endpoint retornou lista de planos (rota não configurada ainda)
-        const foundPlan = response.data.find((p: any) => p.id === id);
-        if (foundPlan) {
-          setPlan({
-            id: foundPlan.id,
-            name: foundPlan.name,
-            description: foundPlan.description,
-            price: foundPlan.price,
-            duration_days: foundPlan.duration_days || foundPlan.duration || 30,
-            max_consultations: foundPlan.max_consultations || foundPlan.consultation_limit || 0,
-            is_active: foundPlan.is_active,
-            features: foundPlan.features || [],
-            discountPercentage: foundPlan.discountPercentage || foundPlan.discount_percentage || 0,
-          });
-          setSubscribers([]);
-        } else {
-          setError('Plano não encontrado');
-        }
-      } else if (response?.success && response.data && !Array.isArray(response.data)) {
-        // Fallback: retornou objeto único do plano
-        const d = response.data;
-        setPlan({
-          id: d.id,
-          name: d.name,
-          description: d.description,
-          price: d.price,
-          duration_days: d.duration_days || 30,
-          max_consultations: d.max_consultations || d.consultation_limit || 0,
-          is_active: d.is_active,
-          features: d.features || [],
-          discountPercentage: d.discountPercentage || d.discount_percentage || 0,
-        });
-        setSubscribers(d.subscribers || []);
       } else {
-        setError(response?.error || 'Erro ao carregar detalhes do plano');
+        setError(response?.error || 'Erro na API: endpoint /plans/{id}/details não retornou os dados esperados. Verifique se o servidor foi atualizado.');
       }
     } catch (err) {
       console.error('Erro ao carregar plano:', err);
-      setError('Erro ao carregar detalhes do plano');
+      setError('Erro de conexão com a API. Verifique se o servidor está online.');
     } finally {
       setIsLoading(false);
     }
