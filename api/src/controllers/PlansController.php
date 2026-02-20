@@ -648,7 +648,7 @@ class PlansController {
             }
             
             // Buscar assinantes ativos
-            $query = "SELECT us.user_id, u.full_name, u.email, u.login, us.status, us.start_date, us.end_date
+            $query = "SELECT us.user_id, u.full_name, u.email, u.username, us.status, us.start_date, us.end_date
                      FROM user_subscriptions us
                      JOIN users u ON us.user_id = u.id
                      WHERE us.plan_id = ? AND us.status = 'active'
