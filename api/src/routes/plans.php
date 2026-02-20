@@ -53,6 +53,8 @@ switch ($method) {
     case 'GET':
         if (strpos($path, '/plans/active') !== false) {
             $plansController->getActive();
+        } elseif (preg_match('/\/plans\/(\d+)\/details$/', $path, $matches)) {
+            $plansController->getDetails($matches[1]);
         } elseif (preg_match('/\/plans\/(\d+)$/', $path, $matches)) {
             $plansController->getById($matches[1]);
         } elseif ($path === '/plans' || strpos($path, '/plans') === 0) {
