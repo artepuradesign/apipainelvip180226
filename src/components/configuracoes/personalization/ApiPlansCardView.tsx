@@ -59,61 +59,52 @@ const ApiPlansCardView: React.FC<ApiPlansCardViewProps> = ({
         </div>
       </CardHeader>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6 pt-0">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 p-4 pt-0">
         {plans.map((plan) => (
           <Card 
             key={plan.id} 
-            className="bg-white dark:bg-gray-800 transition-all duration-300 border border-gray-200 dark:border-gray-700 cursor-pointer min-h-[240px] hover:shadow-lg hover:border-purple-300 dark:hover:border-purple-600 hover:-translate-y-1"
+            className="bg-white dark:bg-gray-800 transition-all duration-200 border border-gray-200 dark:border-gray-700 cursor-pointer hover:shadow-md hover:border-purple-300 dark:hover:border-purple-600"
           >
-            <CardContent className="p-4 h-full flex flex-col">
-              <div className="flex items-center justify-center mb-4">
-                <div className="p-3 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/50 dark:to-purple-800/50 rounded-xl border border-purple-200 dark:border-purple-700">
-                  <CreditCard className="h-8 w-8 text-purple-600 dark:text-purple-400" />
-                </div>
+            <CardContent className="p-3 flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate">
+                  {plan.name}
+                </h3>
               </div>
               
-              <div className="flex-grow text-center">
-                <div className="flex items-center justify-center gap-2 flex-wrap mb-2">
-                  <h3 className="font-semibold text-base text-gray-900 dark:text-gray-100">
-                    {plan.name}
-                  </h3>
-                </div>
-                
-                <div className="flex items-center justify-center gap-2 flex-wrap mb-3">
-                  <Badge variant={plan.is_active ? "default" : "secondary"} className="text-xs">
-                    {plan.is_active ? 'Ativo' : 'Inativo'}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Badge variant={plan.is_active ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+                  {plan.is_active ? 'Ativo' : 'Inativo'}
+                </Badge>
+                {plan.discountPercentage > 0 && (
+                  <Badge variant="outline" className="text-green-600 text-[10px] px-1.5 py-0">
+                    {plan.discountPercentage}% OFF
                   </Badge>
-                  {plan.discountPercentage > 0 && (
-                    <Badge variant="outline" className="text-green-600 text-xs">
-                      {plan.discountPercentage}% OFF
-                    </Badge>
-                  )}
-                </div>
-                
-                <div className="mb-3">
-                  <div className="flex items-baseline justify-center gap-1 mb-1">
-                    <span className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                      R$ {plan.price}
-                    </span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      /{plan.duration_days}d
-                    </span>
-                  </div>
-                </div>
-                
-                <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3">
-                  {plan.description}
-                </p>
+                )}
               </div>
               
-              <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+              <div className="flex items-baseline gap-1">
+                <span className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                  R$ {plan.price}
+                </span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  /{plan.duration_days}d
+                </span>
+              </div>
+              
+              <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                {plan.description}
+              </p>
+              
+              <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
                 <div className="flex gap-1">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={(e) => { e.stopPropagation(); navigate(`/dashboard/personalizacao/plano/${plan.id}`); }}
                     title="Ver assinantes"
-                    className="flex-1 p-1"
+                    className="flex-1 p-1 h-7"
                   >
                     <Eye className="h-3 w-3" />
                   </Button>
@@ -122,7 +113,7 @@ const ApiPlansCardView: React.FC<ApiPlansCardViewProps> = ({
                     size="sm"
                     onClick={(e) => { e.stopPropagation(); onToggleStatus(plan.id); }}
                     title={plan.is_active ? 'Desativar' : 'Ativar'}
-                    className="flex-1 p-1"
+                    className="flex-1 p-1 h-7"
                   >
                     {plan.is_active ? 
                       <PowerOff className="h-3 w-3" /> : 
@@ -134,7 +125,7 @@ const ApiPlansCardView: React.FC<ApiPlansCardViewProps> = ({
                     size="sm"
                     onClick={(e) => { e.stopPropagation(); onEdit(plan); }}
                     title="Editar plano"
-                    className="flex-1 p-1"
+                    className="flex-1 p-1 h-7"
                   >
                     <Edit className="h-3 w-3" />
                   </Button>
@@ -142,7 +133,7 @@ const ApiPlansCardView: React.FC<ApiPlansCardViewProps> = ({
                     variant="outline"
                     size="sm"
                     onClick={(e) => { e.stopPropagation(); onDelete(plan.id); }}
-                    className="text-red-600 hover:text-red-700 flex-1 p-1"
+                    className="text-red-600 hover:text-red-700 flex-1 p-1 h-7"
                     title="Excluir plano"
                   >
                     <Trash2 className="h-3 w-3" />
