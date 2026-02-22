@@ -57,13 +57,22 @@ const AdminRecentTransactions: React.FC<AdminRecentTransactionsProps> = ({ recen
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'recarga': return 'border-l-blue-500';
-      case 'entrada': return 'border-l-green-500';
-      case 'consulta': return 'border-l-purple-500';
-      case 'saque': return 'border-l-red-500';
+      case 'plano': return 'border-l-emerald-500';
       case 'comissao': return 'border-l-yellow-500';
       case 'indicacao': return 'border-l-orange-500';
-      case 'plano': return 'border-l-emerald-500';
+      case 'saque': return 'border-l-red-500';
       default: return 'border-l-gray-500';
+    }
+  };
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'recarga': return 'RECARGA';
+      case 'plano': return 'COMPRA DE PLANO';
+      case 'comissao': return 'COMISSÃO';
+      case 'indicacao': return 'INDICAÇÃO';
+      case 'saque': return 'SAQUE';
+      default: return type.toUpperCase();
     }
   };
 
@@ -85,8 +94,15 @@ const AdminRecentTransactions: React.FC<AdminRecentTransactionsProps> = ({ recen
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0 space-y-1">
-                    {/* Descrição */}
-                    <p className="text-xs sm:text-sm font-medium text-foreground pr-2">
+                    {/* Usuário + Descrição */}
+                    <div className="flex items-center gap-1.5">
+                      {transaction.user_name && (
+                        <span className="text-xs sm:text-sm font-semibold text-primary">
+                          👤 {transaction.user_name}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs sm:text-sm text-foreground/80">
                       {transaction.description}
                     </p>
                     
@@ -106,30 +122,8 @@ const AdminRecentTransactions: React.FC<AdminRecentTransactionsProps> = ({ recen
                       
                       {/* Tipo */}
                       <Badge variant="outline" className="text-[9px] sm:text-[10px] px-1.5 py-0 h-3.5 sm:h-4 font-normal">
-                        {transaction.type.replace('_', ' ').toUpperCase()}
+                        {getTypeLabel(transaction.type)}
                       </Badge>
-                      
-                      {/* Módulo */}
-                      {transaction.module_name && (
-                        <Badge variant="outline" className="text-[9px] sm:text-[10px] px-1 py-0 h-3.5 sm:h-4 font-normal">
-                          {transaction.module_name}
-                        </Badge>
-                      )}
-                    </div>
-                    
-                    {/* Terceira linha: Usuário + Saldo antes/depois */}
-                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                      {transaction.user_name && (
-                        <span className="text-[10px] sm:text-xs text-primary/70 font-medium">
-                          👤 {transaction.user_name}
-                        </span>
-                      )}
-                      
-                      {(transaction.balance_before !== undefined && transaction.balance_after !== undefined) && (
-                        <span className="text-[10px] sm:text-xs text-muted-foreground">
-                          Saldo: {formatCurrency(transaction.balance_before)} → {formatCurrency(transaction.balance_after)}
-                        </span>
-                      )}
                     </div>
                   </div>
                   
@@ -138,12 +132,12 @@ const AdminRecentTransactions: React.FC<AdminRecentTransactionsProps> = ({ recen
                     <Badge 
                       variant="secondary"
                       className={`text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 ${
-                        ['recarga', 'entrada', 'plano', 'indicacao', 'comissao'].includes(transaction.type) 
-                          ? "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300"
-                          : "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300"
+                        ['recarga', 'plano'].includes(transaction.type) 
+                      ? "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300"
+                        : "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300"
                       }`}
                     >
-                      {['recarga', 'entrada', 'plano', 'indicacao', 'comissao'].includes(transaction.type) ? '+' : '-'}
+                      {['recarga', 'plano'].includes(transaction.type) ? '+' : '-'}
                       {formatCurrency(transaction.amount)}
                     </Badge>
                   </div>
