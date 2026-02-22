@@ -14,7 +14,10 @@ const DashboardAdmin = () => {
   const { stats, transactions, isLoading, loadStats, loadTransactions, optimisticIncrementCash, optimisticIncrementRecharges, optimisticIncrementPlanSales } = useApiDashboardAdmin();
   const { notifications } = useNotifications(false); // Desabilitar auto-refresh aqui
   
-  const recentTransactions = transactions.slice(0, 5);
+  // Caixa central: somente recargas e compras de plano geram saldo
+  const recentTransactions = transactions
+    .filter(t => ['recarga', 'plano'].includes(t.type))
+    .slice(0, 10);
 
   // Carregar dados iniciais com proteção contra falta de token
   useEffect(() => {
